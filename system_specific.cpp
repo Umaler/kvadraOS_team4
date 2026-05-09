@@ -3,7 +3,7 @@
 #include <stdexcept>
 #include <system_error>
 
-#ifdef linux
+#ifdef __linux__
 
 #include <errno.h>
 #include <pwd.h>
@@ -11,7 +11,7 @@
 
 #else
     #error The program is implemented only for linux
-#endif // linux
+#endif // __linux__
 
 namespace chk {
 

@@ -78,11 +78,12 @@ int main() {
     std::filesystem::path resultingFile = chk::getHomeDir() / ".media_files";
     Worker worker(handler,
                   std::make_unique<OneThreadSearcher<>>(
-                    std::make_unique<BasicFilter<>>()
+                    std::make_unique<MagicFilter>()
                   ),
                   [resultingFile](std::string str) {
-                      std::ofstream file(resultingFile);
-                      file << str;
+                      std::cout << str << std::endl;
+                      //std::ofstream file(resultingFile);
+                      //file << str;
                   }
                  );
     std::this_thread::sleep_for(22s);

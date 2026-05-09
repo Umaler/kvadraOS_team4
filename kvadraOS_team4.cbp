@@ -32,6 +32,9 @@
 			<Add option="-Wall" />
 			<Add option="-std=c++23" />
 		</Compiler>
+		<Linker>
+			<Add library="magic" />
+		</Linker>
 		<Unit filename="configs_handler.hpp" />
 		<Unit filename="filter.hpp" />
 		<Unit filename="main.cpp" />

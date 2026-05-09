@@ -16,6 +16,7 @@ class ISearcher {
 public:
 
     virtual std::map<std::string, std::vector<std::filesystem::path>> getMediaFiles(std::filesystem::path dirToCheck) = 0;
+    virtual ~ISearcher() = default;
 
 };
 
