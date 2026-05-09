@@ -15,23 +15,22 @@ namespace chk {
 class ISearcher {
 public:
 
-    virtual std::map<std::string, std::vector<std::filesystem::path>> getMediaFiles() = 0;
+    virtual std::map<std::string, std::vector<std::filesystem::path>> getMediaFiles(std::filesystem::path dirToCheck) = 0;
 
 };
 
 template <bool RecursiveSearch = false>
 class OneThreadSearcher : public ISearcher {
 public:
-    OneThreadSearcher(std::filesystem::path dirToCheck, std::unique_ptr<IFilter> filter) :
-        _dirToCheck(dirToCheck),
+    OneThreadSearcher(std::unique_ptr<IFilter> filter) :
         _filter(std::move(filter))
-    {
-        if(!std::filesystem::is_directory(_dirToCheck)) {
+    {}
+
+    std::map<std::string, std::vector<std::filesystem::path>> getMediaFiles(std::filesystem::path dirToCheck) override {
+        if(!std::filesystem::is_directory(dirToCheck)) {
             throw std::invalid_argument("passed path is not directory");
         }
-    }
 
-    std::map<std::string, std::vector<std::filesystem::path>> getMediaFiles() {
         std::map<std::string, std::vector<std::filesystem::path>> result;
 
         if constexpr (RecursiveSearch) {
@@ -42,7 +41,7 @@ public:
             return result;
         }
         else { // not recutrsive search
-            for (const auto& dir_entry : std::filesystem::directory_iterator{_dirToCheck}) {
+            for (const auto& dir_entry : std::filesystem::directory_iterator{dirToCheck}) {
                 auto path = dir_entry.path();
                 std::optional<std::string_view> fileType = _filter->getFileType(path);
                 if(fileType) {
@@ -55,7 +54,6 @@ public:
     }
 
 protected:
-    std::filesystem::path _dirToCheck;
     std::unique_ptr<IFilter> _filter;
 
 };

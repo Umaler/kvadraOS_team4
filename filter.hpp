@@ -20,7 +20,7 @@ template<typename mappingContainerT = std::flat_map<std::string_view, std::strin
 class BasicFilter : public IFilter {
 public:
 
-    std::optional<std::string_view> getFileType(std::filesystem::path file) const {
+    std::optional<std::string_view> getFileType(std::filesystem::path file) const override {
         if(!std::filesystem::is_regular_file(file)) {
             return std::nullopt;
         }
@@ -53,8 +53,8 @@ protected:
         {"mp3", "audio"},
         {"wav", "audio"},
         {"mpg", "video"},
-        {"jpeg", "images"},
-        {"png", "images"}
+        {"jpeg", "image"},
+        {"png", "image"}
     };
 
 };
