@@ -25,6 +25,7 @@ chk::ConfigsHandler getConfigs(int argc, char *argv[]) {
     auto period = 5s;
     bool useWeb = false;
     bool profiling = false;
+    bool recursive = false;
 
     for(int i = 1; i < argc; i++) {
         auto [command, value] = chk::getTwoParts(argv[i], '=');
@@ -48,6 +49,9 @@ chk::ConfigsHandler getConfigs(int argc, char *argv[]) {
                 throw chk::CmdLineArgInvalid("Incorrect value for --period");
             }
         }
+        else if(command == "--recursive") {
+            recursive = true;
+        }
         else if(command == "--web") {
             useWeb = true;
         }
@@ -59,7 +63,7 @@ chk::ConfigsHandler getConfigs(int argc, char *argv[]) {
         }
     }
 
-    return chk::ConfigsHandler(homeDir, period, useWeb, profiling);
+    return chk::ConfigsHandler(homeDir, period, useWeb, profiling, recursive);
 }
 
 int main(int argc, char *argv[]) {
@@ -74,11 +78,21 @@ int main(int argc, char *argv[]) {
             httpServer = std::make_unique<HTTPServerWorker>();
         }
 
+        std::unique_ptr<ISearcher> searcher;
+        if(configs.recursive()) {
+            searcher = std::make_unique<OneThreadSearcher<true>>(
+                          std::make_unique<MagicFilter>()
+                       );
+        }
+        else {
+            searcher = std::make_unique<OneThreadSearcher<false>>(
+                          std::make_unique<MagicFilter>()
+                       );
+        }
+
         std::filesystem::path resultingFilePath = chk::getHomeDir() / ".media_files";
         MainWorker worker(configs,
-                      std::make_unique<OneThreadSearcher<true>>(
-                          std::make_unique<MagicFilter>()
-                      ),
+                      std::move(searcher),
                       [resultingFilePath, configs, &httpServer](std::string str) {
                           if(httpServer) {
                               httpServer->setJson(str);

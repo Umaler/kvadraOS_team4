@@ -11,11 +11,12 @@ public:
 
     using durationT = std::chrono::steady_clock::duration;
 
-    ConfigsHandler(std::filesystem::path dirToCheck, durationT checksInterval, bool useWeb, bool profiling) :
+    ConfigsHandler(std::filesystem::path dirToCheck, durationT checksInterval, bool useWeb, bool profiling, bool recursive) :
         _dirToCheck(dirToCheck),
         _checksInterval(checksInterval),
         _useWeb(useWeb),
-        _profiling(profiling)
+        _profiling(profiling),
+        _recursive(recursive)
     {}
 
     std::filesystem::path getDirToCheck() const {
@@ -34,11 +35,16 @@ public:
         return _profiling;
     }
 
+    bool recursive() const {
+        return _recursive;
+    }
+
 private:
     const std::filesystem::path _dirToCheck;
     const durationT _checksInterval;
     const bool _useWeb = false;
     const bool _profiling = false;
+    const bool _recursive = false;
 
 };
 
