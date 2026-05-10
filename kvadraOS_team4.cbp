@@ -37,7 +37,9 @@
 		</Linker>
 		<Unit filename="configs_handler.hpp" />
 		<Unit filename="filter.hpp" />
+		<Unit filename="httpServerWorker.hpp" />
 		<Unit filename="main.cpp" />
+		<Unit filename="mainWorker.hpp" />
 		<Unit filename="searcher.hpp" />
 		<Unit filename="system_specific.cpp" />
 		<Unit filename="system_specific.hpp" />

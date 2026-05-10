@@ -44,6 +44,8 @@ void dbfs(T firstNode, std::function<std::vector<T>(T)> onNode) {
 
 std::string toJSONString(const std::map<std::string, std::vector<std::filesystem::path>>& data);
 
+std::pair<std::string_view, std::optional<std::string_view>> getTwoParts(std::string_view str, char delim);
+
 }
 
 #endif // UTILITY_HPP

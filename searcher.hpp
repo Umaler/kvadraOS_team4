@@ -15,7 +15,7 @@ namespace chk {
 class ISearcher {
 public:
 
-    virtual std::map<std::string, std::vector<std::filesystem::path>> getMediaFiles(std::filesystem::path dirToCheck) = 0;
+    virtual std::map<std::string, std::vector<std::filesystem::path>> getMediaFiles(std::filesystem::path dirToCheck, std::function<bool()> shouldStop = std::function<bool()>()) = 0;
     virtual ~ISearcher() = default;
 
 };
@@ -27,27 +27,28 @@ public:
         _filter(std::move(filter))
     {}
 
-    std::map<std::string, std::vector<std::filesystem::path>> getMediaFiles(std::filesystem::path dirToCheck) override {
+    std::map<std::string, std::vector<std::filesystem::path>> getMediaFiles(std::filesystem::path dirToCheck, std::function<bool()> shouldStop = std::function<bool()>()) override {
         if(!std::filesystem::is_directory(dirToCheck)) {
             throw std::invalid_argument("passed path is not directory");
         }
 
         std::map<std::string, std::vector<std::filesystem::path>> result;
 
-        if constexpr (RecursiveSearch) {
-            //auto onFile = [&result, this](std::filesystem::path file) -> std::vector<std::filesystem::path> {
-            //    dbfs
-            //}
+        auto dirIter = [](std::filesystem::path dir) {
+            if constexpr (RecursiveSearch) {
+                return std::filesystem::recursive_directory_iterator{dir};
+            }
+            else {
+                return std::filesystem::directory_iterator{dir};
+            }
+        }(dirToCheck);
 
-            return result;
-        }
-        else { // not recutrsive search
-            for (const auto& dir_entry : std::filesystem::directory_iterator{dirToCheck}) {
-                auto path = dir_entry.path();
-                std::optional<std::string_view> fileType = _filter->getFileType(path);
-                if(fileType) {
-                    result[std::string(fileType->begin(), fileType->end())].push_back(path);
-                }
+        for (const auto& dir_entry : dirIter) {
+            if(shouldStop()) break;
+            auto path = dir_entry.path();
+            std::optional<std::string_view> fileType = _filter->getFileType(path);
+            if(fileType) {
+                result[std::string(fileType->begin(), fileType->end())].push_back(path);
             }
         }
 

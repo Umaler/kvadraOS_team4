@@ -11,9 +11,11 @@ public:
 
     using durationT = std::chrono::steady_clock::duration;
 
-    ConfigsHandler(std::filesystem::path dirToCheck, durationT checksInterval) :
+    ConfigsHandler(std::filesystem::path dirToCheck, durationT checksInterval, bool useWeb, bool profiling) :
         _dirToCheck(dirToCheck),
-        _checksInterval(checksInterval)
+        _checksInterval(checksInterval),
+        _useWeb(useWeb),
+        _profiling(profiling)
     {}
 
     std::filesystem::path getDirToCheck() const {
@@ -24,9 +26,19 @@ public:
         return _checksInterval;
     }
 
+    bool useAccessOverWeb() const {
+        return _useWeb;
+    }
+
+    bool profiling() const {
+        return _profiling;
+    }
+
 private:
     const std::filesystem::path _dirToCheck;
     const durationT _checksInterval;
+    const bool _useWeb = false;
+    const bool _profiling = false;
 
 };
 

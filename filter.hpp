@@ -1,6 +1,8 @@
 #ifndef FILTER_HPP
 #define FILTER_HPP
 
+#include "utility.hpp"
+
 #include <filesystem>
 #include <flat_map>
 #include <flat_set>
@@ -103,12 +105,7 @@ public:
 private:
 
     static std::string_view getTopLevelType(std::string_view mimeType) {
-        if(size_t slashPos = mimeType.find('/'); slashPos != mimeType.npos) {
-            return mimeType.substr(0, slashPos);
-        }
-        else {
-            return mimeType;
-        }
+        return getTwoParts(mimeType, '/').first;
     }
 
     const std::flat_set<std::string_view> allowedMIMETypes {

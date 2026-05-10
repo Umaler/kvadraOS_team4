@@ -1,90 +1,121 @@
 #include <iostream>
 
 #include "configs_handler.hpp"
+#include "httpServerWorker.hpp"
+#include "mainWorker.hpp"
 #include "utility.hpp"
 #include "system_specific.hpp"
 #include "searcher.hpp"
 
 #include <fstream>
+#include <sstream>
 
-#include <condition_variable>
-#include <functional>
-#include <memory>
-#include <mutex>
-#include <string>
-#include <thread>
+namespace chk {
 
-class Worker {
-public:
-    Worker(chk::ConfigsHandler configs,
-           std::unique_ptr<chk::ISearcher> searcher,
-           std::function<void(const std::string&)> onNewResult = std::function<void(const std::string&)>{}
-          ) :
-        _onNewResult(onNewResult),
-        _workingThread(std::bind_front(&Worker::workFunc, this), configs, std::move(searcher))
-    {}
+class CmdLineArgInvalid : public std::invalid_argument {
+    using std::invalid_argument::invalid_argument;
+};
 
-    void requestStop() {
-        _workingThread.request_stop();
-    }
+}
 
-    void stopAndWait() {
-        requestStop();
-        _workingThread.join();
-    }
+chk::ConfigsHandler getConfigs(int argc, char *argv[]) {
+    using namespace std::chrono_literals;
 
-    std::string getJSON() const {
-        std::unique_lock lock(_resultingJSON_m);
-        return _resultingJSON;
-    }
+    auto homeDir = chk::getHomeDir();
+    auto period = 5s;
+    bool useWeb = false;
+    bool profiling = false;
 
-    ~Worker() {
-        stopAndWait();
-    }
-
-private:
-    void workFunc(std::stop_token stoken, const chk::ConfigsHandler configs, std::unique_ptr<chk::ISearcher> searcher) {
-        std::mutex cv_mutex;
-        while(!stoken.stop_requested()) {
-            auto files = searcher->getMediaFiles(configs.getDirToCheck());
-            std::string newJSON = chk::toJSONString(files);
-            if(_onNewResult) _onNewResult(newJSON);
-
-            {
-                std::unique_lock lock(_resultingJSON_m);
-                _resultingJSON = newJSON;
+    for(int i = 1; i < argc; i++) {
+        auto [command, value] = chk::getTwoParts(argv[i], '=');
+        if(command == "--dir") {
+            if(!value) {
+                throw chk::CmdLineArgInvalid(std::string{"No value for "} + std::string(command.begin(), command.end()));
             }
-
-            // sleep for required time
-            std::unique_lock lock(cv_mutex);
-            std::condition_variable_any().wait_for(lock, stoken, configs.getChecksInterval(), []{ return false; });
+            std::istringstream is(std::string(value->begin(), value->end()));
+            if(!(is >> homeDir)) {
+                throw chk::CmdLineArgInvalid("Incorrect value for --dir");
+            }
+        }
+        else if(command == "--period") {
+            if(!value) {
+                throw chk::CmdLineArgInvalid(std::string{"No value for "} + std::string(command.begin(), command.end()));
+            }
+            std::istringstream is(std::string(value->begin(), value->end()));
+            size_t seconds;
+            if(!(is >> seconds)) {
+                period = std::chrono::seconds(seconds);
+                throw chk::CmdLineArgInvalid("Incorrect value for --period");
+            }
+        }
+        else if(command == "--web") {
+            useWeb = true;
+        }
+        else if(command == "--profiling") {
+            profiling = true;
+        }
+        else {
+            throw chk::CmdLineArgInvalid(std::string{"No such parameter as "} + std::string(command.begin(), command.end()));
         }
     }
 
-    mutable std::mutex _resultingJSON_m;
-    std::string _resultingJSON;
+    return chk::ConfigsHandler(homeDir, period, useWeb, profiling);
+}
 
-    std::function<void(const std::string&)> _onNewResult;
-
-    std::jthread _workingThread;
-
-};
-
-int main() {
+int main(int argc, char *argv[]) {
     using namespace chk;
-    using namespace std::chrono_literals;
 
-    chk::ConfigsHandler handler(chk::getHomeDir(), 5s);
-    std::filesystem::path resultingFile = chk::getHomeDir() / ".media_files";
-    Worker worker(handler,
-                  std::make_unique<OneThreadSearcher<>>(
-                    std::make_unique<MagicFilter>()
-                  ),
-                  [resultingFile](std::string str) {
-                      std::cout << str << std::endl;
-                      //std::ofstream file(resultingFile);
-                      //file << str;
-                  }
-                 );
-    std::this_thread::sleep_for(22s);
+    try {
+
+        auto configs = getConfigs(argc, argv);
+
+        std::unique_ptr<HTTPServerWorker> httpServer;
+        if(configs.useAccessOverWeb()) {
+            httpServer = std::make_unique<HTTPServerWorker>();
+        }
+
+        std::filesystem::path resultingFilePath = chk::getHomeDir() / ".media_files";
+        MainWorker worker(configs,
+                      std::make_unique<OneThreadSearcher<true>>(
+                          std::make_unique<MagicFilter>()
+                      ),
+                      [resultingFilePath, configs, &httpServer](std::string str) {
+                          if(httpServer) {
+                              httpServer->setJson(str);
+                          }
+                          else {
+                              std::ofstream file(resultingFilePath);
+                              file << str;
+                          }
+                      }
+                     );
+
+        if(configs.profiling()) {
+            std::this_thread::sleep_for(std::chrono::seconds(2));
+        }
+        else {
+            std::cout << "Enter \"exit\" to stop" << std::endl;
+            while(true) {
+                std::string str;
+                std::cin >> str;
+                if(str == "exit") {
+                    break;
+                }
+            }
+        }
+
+    }
+    catch(const CmdLineArgInvalid& ex) {
+        std::cerr << ex.what() << std::endl;
+        return -1;
+    }
+    catch(const std::exception& ex) {
+        std::cerr << "Exception caught in main: " << ex.what() << std::endl;
+        return -2;
+    }
+    catch(...) {
+        std::cerr << "Unknown exception caught in main\n";
+        return -3;
+    }
+    return 0;
 }
